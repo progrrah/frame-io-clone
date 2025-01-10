@@ -28,7 +28,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Маршруты API
 // Загрузка файлов
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
@@ -56,11 +55,53 @@ app.get('/files', (req, res) => {
   const files = fs.readdirSync(uploadPath).map(file => ({
     name: file,
     path: `/uploads/${file}`,
+    type: path.extname(file).toLowerCase(),
   }));
   res.json(files);
 });
 
-// Обработка всех остальных маршрутов для SPA
+// Фильтрация файлов по типу
+app.get('/files/filter', (req, res) => {
+  const { type } = req.query;
+  const uploadPath = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadPath)) {
+    return res.json([]);
+  }
+  const files = fs.readdirSync(uploadPath)
+    .filter(file => {
+      const ext = path.extname(file).toLowerCase();
+      if (type === 'video') {
+        return ['.mp4', '.avi', '.mov'].includes(ext);
+      } else if (type === 'text') {
+        return ['.md', '.txt'].includes(ext);
+      }
+      return false;
+    })
+    .map(file => ({
+      name: file,
+      path: `/uploads/${file}`,
+      type: path.extname(file).toLowerCase(),
+    }));
+  res.json(files);
+});
+
+// Поиск файлов
+app.get('/search', (req, res) => {
+  const { query } = req.query;
+  const uploadPath = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadPath)) {
+    return res.json([]);
+  }
+  const files = fs.readdirSync(uploadPath)
+    .filter(file => file.toLowerCase().includes(query.toLowerCase()))
+    .map(file => ({
+      name: file,
+      path: `/uploads/${file}`,
+    }));
+  res.json(files);
+});
+
+// SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -69,34 +110,3 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-
-// Функция для отображения файлов
-async function fetchFiles() {
-  const response = await fetch('/files');
-  const files = await response.json();
-
-  const fileListDiv = document.getElementById('file-list');
-  fileListDiv.innerHTML = files
-    .map(file => {
-      if (file.path.endsWith('.mp4') || file.path.endsWith('.avi') || file.path.endsWith('.mov')) {
-        return `<div>
-          <span>${file.name}</span>
-          <button onclick="previewVideo('${file.path}')">Preview</button>
-        </div>`;
-      }
-      return `<div>${file.name}</div>`;
-    })
-    .join('');
-}
-
-// Функция для предпросмотра видео
-function previewVideo(filePath) {
-  const videoPreview = document.getElementById('video-preview');
-  const videoSource = document.getElementById('video-source');
-
-  videoSource.src = filePath;
-  videoPreview.style.display = 'block';
-
-  // Перезагружаем видео, чтобы обновить путь
-  videoPreview.load();
-}
