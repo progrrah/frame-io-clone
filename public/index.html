@@ -10,18 +10,19 @@
   <div class="container mt-4">
     <h1>Frame.io Clone</h1>
 
-    <!-- Загрузка файлов на сервер -->
+    <!-- Загрузка файлов -->
     <div class="mb-3">
-      <label for="fileInput" class="form-label">Upload a file:</label>
       <input type="file" id="fileInput" class="form-control">
       <button class="btn btn-primary mt-2" id="uploadBtn">Upload</button>
     </div>
 
-    <!-- Поиск и фильтрация файлов -->
+    <!-- Поиск файлов -->
     <div class="mb-3">
       <input type="text" id="search" class="form-control" placeholder="Search files">
       <button class="btn btn-secondary mt-2" id="searchBtn">Search</button>
     </div>
+
+    <!-- Фильтрация файлов -->
     <div class="mb-3">
       <button class="btn btn-outline-primary" onclick="filterFiles('video')">Filter Videos</button>
       <button class="btn btn-outline-secondary" onclick="filterFiles('text')">Filter Text Files</button>
@@ -30,26 +31,18 @@
     <!-- Список файлов -->
     <ul id="fileList" class="list-group"></ul>
 
-    <!-- Загрузка локального видео -->
-    <div class="mt-4">
-      <label for="videoFileInput" class="form-label">Select a video for local playback:</label>
-      <input type="file" id="videoFileInput" class="form-control" accept="video/*">
-    </div>
-
-    <!-- Видеоплеер -->
-    <div class="mt-4">
-      <video id="localVideoPlayer" controls width="100%" style="display: none;">
-        <source id="localVideoSource" src="">
+    <!-- Предпросмотр видео -->
+    <div id="video-preview-container" class="mt-4">
+      <video id="video-preview" controls width="600" style="display:none;">
+        <source id="video-source" src="" type="video/mp4">
         Your browser does not support the video tag.
       </video>
     </div>
 
-    <!-- Комментарии -->
-    <div class="mt-4">
-      <h3>Comments</h3>
-      <div id="commentsList" class="mb-3"></div>
-      <input type="text" id="commentInput" class="form-control" placeholder="Add a comment">
-      <button class="btn btn-primary mt-2" id="addCommentBtn">Add Comment</button>
+    <!-- Предпросмотр Markdown -->
+    <div id="markdown-preview-container" class="mt-4" style="display:none;">
+      <h3>Markdown Preview</h3>
+      <div id="markdown-preview" class="border p-3"></div>
     </div>
   </div>
 
@@ -59,14 +52,12 @@
     const uploadBtn = document.getElementById('uploadBtn');
     const searchBtn = document.getElementById('searchBtn');
     const fileList = document.getElementById('fileList');
-    const videoFileInput = document.getElementById('videoFileInput');
-    const localVideoPlayer = document.getElementById('localVideoPlayer');
-    const localVideoSource = document.getElementById('localVideoSource');
-    const commentInput = document.getElementById('commentInput');
-    const addCommentBtn = document.getElementById('addCommentBtn');
-    const commentsList = document.getElementById('commentsList');
+    const videoPreview = document.getElementById('video-preview');
+    const videoSource = document.getElementById('video-source');
+    const markdownPreviewContainer = document.getElementById('markdown-preview-container');
+    const markdownPreview = document.getElementById('markdown-preview');
 
-    // Загрузка файла на сервер
+    // Загрузка файла
     uploadBtn.addEventListener('click', async () => {
       const file = fileInput.files[0];
       if (!file) return alert('Please select a file.');
@@ -86,15 +77,10 @@
       }
     });
 
-    // Загрузка списка файлов с сервера
+    // Загрузка списка файлов
     async function loadFiles() {
       const response = await fetch('/files');
       const files = await response.json();
-      displayFiles(files);
-    }
-
-    // Отображение списка файлов
-    function displayFiles(files) {
       fileList.innerHTML = '';
       files.forEach(file => {
         const li = document.createElement('li');
@@ -122,53 +108,61 @@
 
     // Предпросмотр файла
     function previewFile(file) {
-      if (file.type === 'video') {
-        window.location.href = `/video-player.html?path=${encodeURIComponent(file.path)}`;
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+
+      if (['mp4', 'avi', 'mov'].includes(fileExtension)) {
+        videoSource.src = file.path;
+        videoPreview.style.display = 'block';
+        videoPreview.load();
+        markdownPreviewContainer.style.display = 'none';
+      } else if (['md', 'txt'].includes(fileExtension)) {
+        fetch(file.path)
+          .then(response => response.text())
+          .then(content => {
+            markdownPreview.innerHTML = marked.parse(content);
+            markdownPreviewContainer.style.display = 'block';
+            videoPreview.style.display = 'none';
+          });
       } else {
         alert('Preview not supported for this file type.');
       }
     }
 
-    // Загрузка локального видео
-    videoFileInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const videoURL = URL.createObjectURL(file);
-        localVideoSource.src = videoURL;
-        localVideoPlayer.style.display = 'block';
-        localVideoPlayer.load();
-      }
+    // Поиск файлов
+    searchBtn.addEventListener('click', async () => {
+      const query = document.getElementById('search').value;
+      const response = await fetch(`/search?query=${encodeURIComponent(query)}`);
+      const files = await response.json();
+      displayFiles(files);
     });
 
-    // Добавление комментария
-    addCommentBtn.addEventListener('click', async () => {
-      const comment = commentInput.value.trim();
-      if (!comment) return alert('Please enter a comment.');
-
-      const response = await fetch('/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comment }),
-      });
-
-      if (response.ok) {
-        commentInput.value = '';
-        loadComments();
-      } else {
-        alert('Failed to save comment.');
-      }
-    });
-
-    // Загрузка комментариев
-    async function loadComments() {
-      const response = await fetch('/comments');
-      const comments = await response.json();
-      commentsList.innerHTML = comments.map(c => `<div>${c.text}</div>`).join('');
+    // Фильтрация файлов
+    async function filterFiles(type) {
+      const response = await fetch(`/files/filter?type=${type}`);
+      const files = await response.json();
+      displayFiles(files);
     }
 
-    // Инициализация
+    // Отображение файлов
+    function displayFiles(files) {
+      fileList.innerHTML = '';
+      files.forEach(file => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.textContent = file.name;
+
+        const previewBtn = document.createElement('button');
+        previewBtn.textContent = 'Preview';
+        previewBtn.className = 'btn btn-info btn-sm me-2';
+        previewBtn.addEventListener('click', () => previewFile(file));
+
+        li.appendChild(previewBtn);
+        fileList.appendChild(li);
+      });
+    }
+
+    // Загрузка файлов при старте
     loadFiles();
-    loadComments();
   </script>
 </body>
 </html>
