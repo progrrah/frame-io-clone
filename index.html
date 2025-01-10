@@ -15,7 +15,7 @@
         .file-list {
             margin-top: 20px;
         }
-        .video-preview {
+        .video-preview, .markdown-preview {
             margin-top: 20px;
         }
         .comment-section {
@@ -48,6 +48,11 @@
             <video id="videoPlayer" controls width="100%" style="display: none;"></video>
         </div>
 
+        <div class="markdown-preview">
+            <h3>Markdown Preview:</h3>
+            <div id="markdownViewer" class="p-3 border" style="display: none; background: #f8f9fa;"></div>
+        </div>
+
         <div class="comment-section">
             <h3>Comments:</h3>
             <div id="comments" class="mb-3"></div>
@@ -63,6 +68,7 @@
         const uploadBtn = document.getElementById('uploadBtn');
         const fileList = document.getElementById('fileList');
         const videoPlayer = document.getElementById('videoPlayer');
+        const markdownViewer = document.getElementById('markdownViewer');
         const comments = document.getElementById('comments');
         const commentInput = document.getElementById('commentInput');
         const addCommentBtn = document.getElementById('addCommentBtn');
@@ -112,12 +118,23 @@
             previewBtn.textContent = 'Preview';
             previewBtn.className = 'btn btn-success btn-sm';
             previewBtn.addEventListener('click', () => {
-                if (file && file.type.startsWith('video/')) {
-                    const url = URL.createObjectURL(file);
-                    videoPlayer.src = url;
-                    videoPlayer.style.display = 'block';
-                } else {
-                    alert('Selected file is not a video.');
+                if (file) {
+                    if (file.type.startsWith('video/')) {
+                        const url = URL.createObjectURL(file);
+                        videoPlayer.src = url;
+                        videoPlayer.style.display = 'block';
+                        markdownViewer.style.display = 'none';
+                    } else if (file.type === 'text/markdown') {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            markdownViewer.innerHTML = marked.parse(e.target.result);
+                            markdownViewer.style.display = 'block';
+                            videoPlayer.style.display = 'none';
+                        };
+                        reader.readAsText(file);
+                    } else {
+                        alert('Unsupported file type.');
+                    }
                 }
             });
 
@@ -179,6 +196,11 @@
             const updatedComments = savedComments.filter(comment => comment !== commentText);
             localStorage.setItem('comments', JSON.stringify(updatedComments));
         }
+
+        // Include marked.js library for Markdown rendering
+        const script = document.createElement('script');
+        script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+        document.head.appendChild(script);
     </script>
 </body>
 </html>
