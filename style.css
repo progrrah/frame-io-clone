@@ -1,0 +1,50 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  
+  header {
+    background-color: #333;
+    color: #fff;
+    padding: 1rem;
+  }
+  
+  header h1 {
+    margin: 0;
+  }
+  
+  nav ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    gap: 1rem;
+  }
+  
+  nav a {
+    color: #fff;
+    text-decoration: none;
+  }
+  
+  main {
+    padding: 2rem;
+  }
+  
+  section {
+    margin-bottom: 2rem;
+  }
+  
+  #project-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .project-card {
+    border: 1px solid #ccc;
+    padding: 1rem;
+    border-radius: 5px;
+    width: 200px;
+    text-align: center;
+  }
+  
