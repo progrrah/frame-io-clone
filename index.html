@@ -46,6 +46,7 @@
         <div class="video-preview">
             <h3>Video Preview:</h3>
             <video id="videoPlayer" controls width="100%" style="display: none;"></video>
+            <p id="videoPath" class="mt-2" style="display: none;"></p>
         </div>
 
         <div class="markdown-preview">
@@ -68,6 +69,7 @@
         const uploadBtn = document.getElementById('uploadBtn');
         const fileList = document.getElementById('fileList');
         const videoPlayer = document.getElementById('videoPlayer');
+        const videoPathElement = document.getElementById('videoPath');
         const markdownViewer = document.getElementById('markdownViewer');
         const comments = document.getElementById('comments');
         const commentInput = document.getElementById('commentInput');
@@ -77,6 +79,7 @@
         window.addEventListener('load', () => {
             const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
             const savedComments = JSON.parse(localStorage.getItem('comments')) || [];
+            const savedVideoPath = localStorage.getItem('lastVideoPath');
 
             // Restore file list
             savedFiles.forEach(fileName => {
@@ -87,6 +90,20 @@
             savedComments.forEach(commentText => {
                 addCommentToList(commentText);
             });
+
+            // Restore last video path
+            if (savedVideoPath) {
+                const isAccessible = checkFileExists(savedVideoPath);
+                if (isAccessible) {
+                    videoPlayer.src = savedVideoPath;
+                    videoPlayer.style.display = 'block';
+                    videoPathElement.style.display = 'none';
+                } else {
+                    videoPathElement.textContent = `Last known path: ${savedVideoPath}`;
+                    videoPathElement.style.display = 'block';
+                    videoPlayer.style.display = 'none';
+                }
+            }
         });
 
         uploadBtn.addEventListener('click', () => {
@@ -103,6 +120,12 @@
 
                 // Save file name to localStorage
                 savedFiles.push(file.name);
+
+                // Save video path if it's a video file
+                if (file.type.startsWith('video/')) {
+                    const url = URL.createObjectURL(file);
+                    localStorage.setItem('lastVideoPath', url);
+                }
             }
 
             localStorage.setItem('uploadedFiles', JSON.stringify(savedFiles));
@@ -124,16 +147,33 @@
                         videoPlayer.src = url;
                         videoPlayer.style.display = 'block';
                         markdownViewer.style.display = 'none';
+                        videoPathElement.style.display = 'none';
+                        localStorage.setItem('lastVideoPath', url);
                     } else if (file.type === 'text/markdown') {
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             markdownViewer.innerHTML = marked.parse(e.target.result);
                             markdownViewer.style.display = 'block';
                             videoPlayer.style.display = 'none';
+                            videoPathElement.style.display = 'none';
                         };
                         reader.readAsText(file);
                     } else {
                         alert('Unsupported file type.');
+                    }
+                } else {
+                    const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+                    const filePath = savedFiles.find(f => f === fileName);
+                    if (filePath) {
+                        fetch(filePath)
+                            .then(response => response.text())
+                            .then(text => {
+                                markdownViewer.innerHTML = marked.parse(text);
+                                markdownViewer.style.display = 'block';
+                                videoPlayer.style.display = 'none';
+                                videoPathElement.style.display = 'none';
+                            })
+                            .catch(err => alert('Error loading Markdown file: ' + err));
                     }
                 }
             });
@@ -157,6 +197,13 @@
             localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
         }
 
+        function checkFileExists(filePath) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('HEAD', filePath, false);
+            xhr.send();
+            return xhr.status === 200;
+        }
+
         addCommentBtn.addEventListener('click', () => {
             const commentText = commentInput.value.trim();
             if (commentText === '') {
@@ -175,32 +222,3 @@
         });
 
         function addCommentToList(commentText) {
-            const commentDiv = document.createElement('div');
-            commentDiv.className = 'alert alert-secondary d-flex justify-content-between align-items-center';
-            commentDiv.textContent = commentText;
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.className = 'btn btn-danger btn-sm';
-            deleteBtn.addEventListener('click', () => {
-                commentDiv.remove();
-                removeCommentFromStorage(commentText);
-            });
-
-            commentDiv.appendChild(deleteBtn);
-            comments.appendChild(commentDiv);
-        }
-
-        function removeCommentFromStorage(commentText) {
-            const savedComments = JSON.parse(localStorage.getItem('comments')) || [];
-            const updatedComments = savedComments.filter(comment => comment !== commentText);
-            localStorage.setItem('comments', JSON.stringify(updatedComments));
-        }
-
-        // Include marked.js library for Markdown rendering
-        const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-        document.head.appendChild(script);
-    </script>
-</body>
-</html>
