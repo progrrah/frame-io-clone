@@ -15,6 +15,12 @@
         .file-list {
             margin-top: 20px;
         }
+        .video-preview {
+            margin-top: 20px;
+        }
+        .comment-section {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -36,12 +42,46 @@
             <h3>Uploaded Files:</h3>
             <ul id="fileList" class="list-group"></ul>
         </div>
+
+        <div class="video-preview">
+            <h3>Video Preview:</h3>
+            <video id="videoPlayer" controls width="100%" style="display: none;"></video>
+        </div>
+
+        <div class="comment-section">
+            <h3>Comments:</h3>
+            <div id="comments" class="mb-3"></div>
+            <div class="input-group">
+                <input type="text" id="commentInput" class="form-control" placeholder="Add a comment">
+                <button class="btn btn-secondary" id="addCommentBtn">Add</button>
+            </div>
+        </div>
     </div>
 
     <script>
         const fileInput = document.getElementById('fileInput');
         const uploadBtn = document.getElementById('uploadBtn');
         const fileList = document.getElementById('fileList');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const comments = document.getElementById('comments');
+        const commentInput = document.getElementById('commentInput');
+        const addCommentBtn = document.getElementById('addCommentBtn');
+
+        // Load saved data from localStorage
+        window.addEventListener('load', () => {
+            const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+            const savedComments = JSON.parse(localStorage.getItem('comments')) || [];
+
+            // Restore file list
+            savedFiles.forEach(fileName => {
+                addFileToList(fileName);
+            });
+
+            // Restore comments
+            savedComments.forEach(commentText => {
+                addCommentToList(commentText);
+            });
+        });
 
         uploadBtn.addEventListener('click', () => {
             const files = fileInput.files;
@@ -50,15 +90,81 @@
                 return;
             }
 
+            const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+
             for (const file of files) {
-                const li = document.createElement('li');
-                li.textContent = file.name;
-                li.className = 'list-group-item';
-                fileList.appendChild(li);
+                addFileToList(file.name);
+
+                // Save file name to localStorage
+                savedFiles.push(file.name);
             }
 
+            localStorage.setItem('uploadedFiles', JSON.stringify(savedFiles));
             fileInput.value = '';
         });
+
+        addCommentBtn.addEventListener('click', () => {
+            const commentText = commentInput.value.trim();
+            if (commentText === '') {
+                alert('Comment cannot be empty.');
+                return;
+            }
+
+            addCommentToList(commentText);
+
+            // Save comment to localStorage
+            const savedComments = JSON.parse(localStorage.getItem('comments')) || [];
+            savedComments.push(commentText);
+            localStorage.setItem('comments', JSON.stringify(savedComments));
+
+            commentInput.value = '';
+        });
+
+        function addFileToList(fileName) {
+            const li = document.createElement('li');
+            li.textContent = fileName;
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'btn btn-danger btn-sm';
+            deleteBtn.addEventListener('click', () => {
+                li.remove();
+                removeFileFromStorage(fileName);
+            });
+
+            li.appendChild(deleteBtn);
+            fileList.appendChild(li);
+        }
+
+        function removeFileFromStorage(fileName) {
+            const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+            const updatedFiles = savedFiles.filter(file => file !== fileName);
+            localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
+        }
+
+        function addCommentToList(commentText) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'alert alert-secondary d-flex justify-content-between align-items-center';
+            commentDiv.textContent = commentText;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'btn btn-danger btn-sm';
+            deleteBtn.addEventListener('click', () => {
+                commentDiv.remove();
+                removeCommentFromStorage(commentText);
+            });
+
+            commentDiv.appendChild(deleteBtn);
+            comments.appendChild(commentDiv);
+        }
+
+        function removeCommentFromStorage(commentText) {
+            const savedComments = JSON.parse(localStorage.getItem('comments')) || [];
+            const updatedComments = savedComments.filter(comment => comment !== commentText);
+            localStorage.setItem('comments', JSON.stringify(updatedComments));
+        }
     </script>
 </body>
 </html>
