@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Настройка хранилища для multer
 const storage = multer.diskStorage({
@@ -27,7 +27,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Маршруты
+// Маршруты API
 // Загрузка файлов
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
@@ -57,6 +57,11 @@ app.get('/files', (req, res) => {
     path: `/uploads/${file}`,
   }));
   res.json(files);
+});
+
+// Обработка всех остальных маршрутов для SPA
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Запуск сервера
