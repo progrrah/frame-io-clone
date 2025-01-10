@@ -16,8 +16,19 @@
       <button class="btn btn-primary mt-2" id="uploadBtn">Upload</button>
     </div>
     
-<!-- Кнопка перехода на страницу аннотаций -->
-<a href="/annotation" class="btn btn-success mt-3">Go to Annotation Page</a>
+    <!-- Кнопка перехода на страницу аннотаций -->
+    <div class="mb-3">
+      <a href="/annotation" class="btn btn-success mt-3">Go to Annotation Page</a>
+      <button id="showAnnotations" class="btn btn-primary mt-3">Show All Annotations</button>
+    </div>
+
+    <!-- Список аннотаций -->
+    <div id="annotationsList" class="mt-4" style="display: none;">
+      <h2>Your Annotations</h2>
+      <ul class="list-group" id="annotationsUl">
+        <!-- Список аннотаций будет добавляться здесь -->
+      </ul>
+    </div>
 
     <!-- Поиск файлов -->
     <div class="mb-3">
@@ -59,6 +70,9 @@
     const videoSource = document.getElementById('video-source');
     const markdownPreviewContainer = document.getElementById('markdown-preview-container');
     const markdownPreview = document.getElementById('markdown-preview');
+    const annotationsList = document.getElementById('annotationsList');
+    const annotationsUl = document.getElementById('annotationsUl');
+    const showAnnotationsBtn = document.getElementById('showAnnotations');
 
     // Загрузка файла
     uploadBtn.addEventListener('click', async () => {
@@ -118,6 +132,40 @@
         fileList.appendChild(li);
       });
     }
+
+    // Показ всех аннотаций
+    showAnnotationsBtn.addEventListener('click', async () => {
+      const response = await fetch('/annotations');
+      if (response.ok) {
+        const data = await response.json();
+        annotationsUl.innerHTML = '';
+        annotationsList.style.display = 'block';
+
+        if (Object.keys(data).length === 0) {
+          annotationsUl.innerHTML = '<li class="list-group-item">No annotations found.</li>';
+        } else {
+          for (const [videoPath, annotations] of Object.entries(data)) {
+            const videoItem = document.createElement('li');
+            videoItem.className = 'list-group-item';
+            videoItem.innerHTML = `<strong>Video:</strong> ${videoPath}`;
+            annotationsUl.appendChild(videoItem);
+
+            annotations.forEach(annotation => {
+              const annotationItem = document.createElement('li');
+              annotationItem.className = 'list-group-item ms-4';
+              annotationItem.innerHTML = `
+                <div><strong>Start:</strong> ${annotation.startTime}s</div>
+                <div><strong>End:</strong> ${annotation.endTime}s</div>
+                <div><strong>Annotation:</strong> ${annotation.text}</div>
+              `;
+              annotationsUl.appendChild(annotationItem);
+            });
+          }
+        }
+      } else {
+        alert('Failed to load annotations.');
+      }
+    });
 
     // Предпросмотр файла
     function previewFile(file) {
