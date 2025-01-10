@@ -90,7 +90,13 @@
         const previewBtn = document.createElement('button');
         previewBtn.textContent = 'Preview';
         previewBtn.className = 'btn btn-info btn-sm me-2';
-        previewBtn.addEventListener('click', () => previewFile(file));
+        previewBtn.addEventListener('click', () => {
+  if (file.type === 'video') {
+    window.location.href = `/video-player.html?path=${encodeURIComponent(file.path)}`;
+  } else {
+    previewFile(file); // Для других типов файлов используем старую логику
+  }
+});
 
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete';
