@@ -116,7 +116,7 @@ app.post('/annotations', (req, res) => {
   res.json({ message: 'Annotations saved' });
 });
 
-// Загрузка аннотаций
+// Загрузка аннотаций для определенного видео
 app.get('/annotations', (req, res) => {
   const { video } = req.query;
 
@@ -126,6 +126,11 @@ app.get('/annotations', (req, res) => {
 
   const annotations = annotationsData[video] || [];
   res.json({ annotations });
+});
+
+// Загрузка всех аннотаций
+app.get('/all-annotations', (req, res) => {
+  res.json(annotationsData);
 });
 
 // Маршрут для annotation.html
