@@ -93,7 +93,7 @@
             const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
 
             for (const file of files) {
-                addFileToList(file.name);
+                addFileToList(file.name, file);
 
                 // Save file name to localStorage
                 savedFiles.push(file.name);
@@ -102,6 +102,43 @@
             localStorage.setItem('uploadedFiles', JSON.stringify(savedFiles));
             fileInput.value = '';
         });
+
+        function addFileToList(fileName, file) {
+            const li = document.createElement('li');
+            li.textContent = fileName;
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+            const previewBtn = document.createElement('button');
+            previewBtn.textContent = 'Preview';
+            previewBtn.className = 'btn btn-success btn-sm';
+            previewBtn.addEventListener('click', () => {
+                if (file && file.type.startsWith('video/')) {
+                    const url = URL.createObjectURL(file);
+                    videoPlayer.src = url;
+                    videoPlayer.style.display = 'block';
+                } else {
+                    alert('Selected file is not a video.');
+                }
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'btn btn-danger btn-sm';
+            deleteBtn.addEventListener('click', () => {
+                li.remove();
+                removeFileFromStorage(fileName);
+            });
+
+            li.appendChild(previewBtn);
+            li.appendChild(deleteBtn);
+            fileList.appendChild(li);
+        }
+
+        function removeFileFromStorage(fileName) {
+            const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
+            const updatedFiles = savedFiles.filter(file => file !== fileName);
+            localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
+        }
 
         addCommentBtn.addEventListener('click', () => {
             const commentText = commentInput.value.trim();
@@ -119,29 +156,6 @@
 
             commentInput.value = '';
         });
-
-        function addFileToList(fileName) {
-            const li = document.createElement('li');
-            li.textContent = fileName;
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.className = 'btn btn-danger btn-sm';
-            deleteBtn.addEventListener('click', () => {
-                li.remove();
-                removeFileFromStorage(fileName);
-            });
-
-            li.appendChild(deleteBtn);
-            fileList.appendChild(li);
-        }
-
-        function removeFileFromStorage(fileName) {
-            const savedFiles = JSON.parse(localStorage.getItem('uploadedFiles')) || [];
-            const updatedFiles = savedFiles.filter(file => file !== fileName);
-            localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
-        }
 
         function addCommentToList(commentText) {
             const commentDiv = document.createElement('div');
