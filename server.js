@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Настройка хранилища для multer
 const storage = multer.diskStorage({
@@ -28,6 +27,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Маршруты API
 // Загрузка файлов
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
@@ -55,53 +55,11 @@ app.get('/files', (req, res) => {
   const files = fs.readdirSync(uploadPath).map(file => ({
     name: file,
     path: `/uploads/${file}`,
-    type: path.extname(file).toLowerCase(),
   }));
   res.json(files);
 });
 
-// Фильтрация файлов по типу
-app.get('/files/filter', (req, res) => {
-  const { type } = req.query;
-  const uploadPath = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadPath)) {
-    return res.json([]);
-  }
-  const files = fs.readdirSync(uploadPath)
-    .filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      if (type === 'video') {
-        return ['.mp4', '.avi', '.mov'].includes(ext);
-      } else if (type === 'text') {
-        return ['.md', '.txt'].includes(ext);
-      }
-      return false;
-    })
-    .map(file => ({
-      name: file,
-      path: `/uploads/${file}`,
-      type: path.extname(file).toLowerCase(),
-    }));
-  res.json(files);
-});
-
-// Поиск файлов
-app.get('/search', (req, res) => {
-  const { query } = req.query;
-  const uploadPath = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadPath)) {
-    return res.json([]);
-  }
-  const files = fs.readdirSync(uploadPath)
-    .filter(file => file.toLowerCase().includes(query.toLowerCase()))
-    .map(file => ({
-      name: file,
-      path: `/uploads/${file}`,
-    }));
-  res.json(files);
-});
-
-// SPA fallback
+// Обработка всех остальных маршрутов для SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
