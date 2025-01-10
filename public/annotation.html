@@ -10,6 +10,9 @@
   <div class="container mt-4">
     <h1>Video Annotation</h1>
 
+    <!-- Кнопка возвращения на главную -->
+    <button id="backToHome" class="btn btn-primary mb-3">Return to Home</button>
+
     <!-- Видеоплеер -->
     <div class="mb-4">
       <video id="videoPlayer" controls width="100%">
@@ -59,6 +62,11 @@
     const annotationList = document.getElementById('annotationList');
 
     const annotations = [];
+
+    // Кнопка возвращения на главную
+    document.getElementById('backToHome').addEventListener('click', () => {
+      window.location.href = '/';
+    });
 
     // Добавление аннотации
     addAnnotationBtn.addEventListener('click', () => {
