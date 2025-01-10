@@ -15,7 +15,7 @@
       <input type="file" id="fileInput" class="form-control">
       <button class="btn btn-primary mt-2" id="uploadBtn">Upload</button>
     </div>
-    
+
     <!-- Кнопка перехода на страницу аннотаций -->
     <div class="mb-3">
       <a href="/annotation" class="btn btn-success mt-3">Go to Annotation Page</a>
@@ -46,8 +46,8 @@
     <ul id="fileList" class="list-group"></ul>
 
     <!-- Предпросмотр видео -->
-    <div id="video-preview-container" class="mt-4">
-      <video id="video-preview" controls width="600" style="display:none;">
+    <div id="video-preview-container" class="mt-4" style="display: none;">
+      <video id="video-preview" controls width="600">
         <source id="video-source" src="" type="video/mp4">
         Your browser does not support the video tag.
       </video>
@@ -66,6 +66,7 @@
     const uploadBtn = document.getElementById('uploadBtn');
     const searchBtn = document.getElementById('searchBtn');
     const fileList = document.getElementById('fileList');
+    const videoPreviewContainer = document.getElementById('video-preview-container');
     const videoPreview = document.getElementById('video-preview');
     const videoSource = document.getElementById('video-source');
     const markdownPreviewContainer = document.getElementById('markdown-preview-container');
@@ -98,44 +99,12 @@
     async function loadFiles() {
       const response = await fetch('/files');
       const files = await response.json();
-      fileList.innerHTML = '';
-      files.forEach(file => {
-        const li = document.createElement('li');
-        li.className = 'list-group-item d-flex justify-content-between align-items-center';
-        li.textContent = file.name;
-
-        const previewBtn = document.createElement('button');
-        previewBtn.textContent = 'Preview';
-        previewBtn.className = 'btn btn-info btn-sm me-2';
-        previewBtn.addEventListener('click', () => previewFile(file));
-
-        if (['mp4', 'avi', 'mov'].includes(file.name.split('.').pop().toLowerCase())) {
-          const annotateBtn = document.createElement('button');
-          annotateBtn.textContent = 'Annotate';
-          annotateBtn.className = 'btn btn-warning btn-sm me-2';
-          annotateBtn.addEventListener('click', () => {
-            window.location.href = `annotation.html?video=${encodeURIComponent(file.path)}`;
-          });
-          li.appendChild(annotateBtn);
-        }
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.className = 'btn btn-danger btn-sm';
-        deleteBtn.addEventListener('click', async () => {
-          await fetch(`/delete/${file.name}`, { method: 'DELETE' });
-          loadFiles();
-        });
-
-        li.appendChild(previewBtn);
-        li.appendChild(deleteBtn);
-        fileList.appendChild(li);
-      });
+      displayFiles(files);
     }
 
     // Показ всех аннотаций
     showAnnotationsBtn.addEventListener('click', async () => {
-      const response = await fetch('/annotations');
+      const response = await fetch('/all-annotations');
       if (response.ok) {
         const data = await response.json();
         annotationsUl.innerHTML = '';
@@ -173,7 +142,7 @@
 
       if (['mp4', 'avi', 'mov'].includes(fileExtension)) {
         videoSource.src = file.path;
-        videoPreview.style.display = 'block';
+        videoPreviewContainer.style.display = 'block';
         videoPreview.load();
         markdownPreviewContainer.style.display = 'none';
       } else if (['md', 'txt'].includes(fileExtension)) {
@@ -182,7 +151,7 @@
           .then(content => {
             markdownPreview.innerHTML = marked.parse(content);
             markdownPreviewContainer.style.display = 'block';
-            videoPreview.style.display = 'none';
+            videoPreviewContainer.style.display = 'none';
           });
       } else {
         alert('Preview not supported for this file type.');
@@ -217,7 +186,26 @@
         previewBtn.className = 'btn btn-info btn-sm me-2';
         previewBtn.addEventListener('click', () => previewFile(file));
 
+        if (['mp4', 'avi', 'mov'].includes(file.name.split('.').pop().toLowerCase())) {
+          const annotateBtn = document.createElement('button');
+          annotateBtn.textContent = 'Annotate';
+          annotateBtn.className = 'btn btn-warning btn-sm me-2';
+          annotateBtn.addEventListener('click', () => {
+            window.location.href = `/annotation?video=${encodeURIComponent(file.path)}`;
+          });
+          li.appendChild(annotateBtn);
+        }
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.addEventListener('click', async () => {
+          await fetch(`/delete/${file.name}`, { method: 'DELETE' });
+          loadFiles();
+        });
+
         li.appendChild(previewBtn);
+        li.appendChild(deleteBtn);
         fileList.appendChild(li);
       });
     }
