@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Настройка хранилища для multer
 const storage = multer.diskStorage({
@@ -68,3 +69,34 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
+
+// Функция для отображения файлов
+async function fetchFiles() {
+  const response = await fetch('/files');
+  const files = await response.json();
+
+  const fileListDiv = document.getElementById('file-list');
+  fileListDiv.innerHTML = files
+    .map(file => {
+      if (file.path.endsWith('.mp4') || file.path.endsWith('.avi') || file.path.endsWith('.mov')) {
+        return `<div>
+          <span>${file.name}</span>
+          <button onclick="previewVideo('${file.path}')">Preview</button>
+        </div>`;
+      }
+      return `<div>${file.name}</div>`;
+    })
+    .join('');
+}
+
+// Функция для предпросмотра видео
+function previewVideo(filePath) {
+  const videoPreview = document.getElementById('video-preview');
+  const videoSource = document.getElementById('video-source');
+
+  videoSource.src = filePath;
+  videoPreview.style.display = 'block';
+
+  // Перезагружаем видео, чтобы обновить путь
+  videoPreview.load();
+}
