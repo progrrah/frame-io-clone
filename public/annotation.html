@@ -61,7 +61,8 @@
     const saveAnnotationsBtn = document.getElementById('saveAnnotations');
     const annotationList = document.getElementById('annotationList');
 
-    const annotations = [];
+    let annotations = [];
+    let videoPath = '';
 
     // Кнопка возвращения на главную
     document.getElementById('backToHome').addEventListener('click', () => {
@@ -94,10 +95,15 @@
 
     // Сохранение аннотаций
     saveAnnotationsBtn.addEventListener('click', async () => {
+      const payload = {
+        videoPath,
+        annotations,
+      };
+
       const response = await fetch('/annotations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(annotations),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -107,14 +113,31 @@
       }
     });
 
+    // Загрузка аннотаций с сервера
+    async function loadAnnotations() {
+      const response = await fetch(`/annotations?video=${encodeURIComponent(videoPath)}`);
+      if (response.ok) {
+        const data = await response.json();
+        annotations = data.annotations || [];
+        annotationList.innerHTML = '';
+        annotations.forEach(annotation => {
+          const li = document.createElement('li');
+          li.className = 'list-group-item';
+          li.textContent = `(${annotation.startTime}s - ${annotation.endTime}s): ${annotation.text}`;
+          annotationList.appendChild(li);
+        });
+      }
+    }
+
     // Загрузка видео для аннотирования
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
-      const videoPath = urlParams.get('video');
+      videoPath = urlParams.get('video');
 
       if (videoPath) {
         document.getElementById('videoSource').src = videoPath;
         videoPlayer.load();
+        loadAnnotations();
       } else {
         alert('No video specified.');
       }

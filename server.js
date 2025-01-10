@@ -28,6 +28,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Для хранения аннотаций в памяти (можно заменить на базу данных)
+const annotationsData = {};
+
 // Загрузка файлов
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
@@ -101,7 +104,31 @@ app.get('/search', (req, res) => {
   res.json(files);
 });
 
-// Добавление маршрута для annotation.html
+// Сохранение аннотаций
+app.post('/annotations', (req, res) => {
+  const { videoPath, annotations } = req.body;
+
+  if (!videoPath || !Array.isArray(annotations)) {
+    return res.status(400).json({ error: 'Invalid data' });
+  }
+
+  annotationsData[videoPath] = annotations;
+  res.json({ message: 'Annotations saved' });
+});
+
+// Загрузка аннотаций
+app.get('/annotations', (req, res) => {
+  const { video } = req.query;
+
+  if (!video) {
+    return res.status(400).json({ error: 'Video parameter is required' });
+  }
+
+  const annotations = annotationsData[video] || [];
+  res.json({ annotations });
+});
+
+// Маршрут для annotation.html
 app.get('/annotation', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'annotation.html'));
 });
