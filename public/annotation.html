@@ -126,6 +126,8 @@
           li.textContent = `(${annotation.startTime}s - ${annotation.endTime}s): ${annotation.text}`;
           annotationList.appendChild(li);
         });
+      } else {
+        alert('Failed to load annotations.');
       }
     }
 
