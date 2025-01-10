@@ -92,6 +92,16 @@
         previewBtn.className = 'btn btn-info btn-sm me-2';
         previewBtn.addEventListener('click', () => previewFile(file));
 
+        if (['mp4', 'avi', 'mov'].includes(file.name.split('.').pop().toLowerCase())) {
+          const annotateBtn = document.createElement('button');
+          annotateBtn.textContent = 'Annotate';
+          annotateBtn.className = 'btn btn-warning btn-sm me-2';
+          annotateBtn.addEventListener('click', () => {
+            window.location.href = `annotation.html?video=${encodeURIComponent(file.path)}`;
+          });
+          li.appendChild(annotateBtn);
+        }
+
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete';
         deleteBtn.className = 'btn btn-danger btn-sm';

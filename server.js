@@ -101,6 +101,11 @@ app.get('/search', (req, res) => {
   res.json(files);
 });
 
+// Добавление маршрута для annotation.html
+app.get('/annotation', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'annotation.html'));
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
