@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yandex Disk Integration</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-4">
+    <h1>Yandex Disk File Manager</h1>
+
+    <!-- Авторизация -->
+    <div class="mb-3">
+      <button id="authorizeBtn" class="btn btn-primary">Authorize with Yandex Disk</button>
+    </div>
+
+    <!-- Список файлов -->
+    <div class="mb-3">
+      <button id="loadFilesBtn" class="btn btn-success">Load Files</button>
+    </div>
+
+    <ul id="fileList" class="list-group"></ul>
+
+    <!-- Загрузка файла -->
+    <div class="mb-3 mt-3">
+      <input type="file" id="fileInput" class="form-control">
+      <button id="uploadBtn" class="btn btn-primary mt-2">Upload to Yandex Disk</button>
+    </div>
+
+    <!-- Удаление файла -->
+    <div class="mb-3">
+      <input type="text" id="deleteFilePath" class="form-control" placeholder="Enter file path to delete">
+      <button id="deleteBtn" class="btn btn-danger mt-2">Delete from Yandex Disk</button>
+    </div>
+  </div>
+
+  <script>
+    const CLIENT_ID = 'ВАШ_CLIENT_ID';
+    const REDIRECT_URI = 'https://oauth.yandex.com/verification_code';
+    let accessToken = '';
+
+    // Авторизация с Яндекс.Диском
+    document.getElementById('authorizeBtn').addEventListener('click', () => {
+      const authUrl = `https://oauth.yandex.com/authorize?response_type=token&client_id=${CLIENT_ID}`;
+      window.location.href = authUrl;
+    });
+
+    // Получение токена из URL
+    if (window.location.hash.includes('access_token')) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      accessToken = params.get('access_token');
+      alert('Authorization successful!');
+    }
+
+    // Загрузка списка файлов
+    document.getElementById('loadFilesBtn').addEventListener('click', async () => {
+      if (!accessToken) return alert('Please authorize first.');
+
+      const response = await fetch('https://cloud-api.yandex.net/v1/disk/resources/files', {
+        headers: {
+          Authorization: `OAuth ${accessToken}`,
+        },
+      });
+
+      const data = await response.json();
+      const fileList = document.getElementById('fileList');
+      fileList.innerHTML = '';
+
+      data.items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = item.name;
+        fileList.appendChild(li);
+      });
+    });
+
+    // Загрузка файла
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      if (!accessToken) return alert('Please authorize first.');
+
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) return alert('Please select a file.');
+
+      const response = await fetch(`https://cloud-api.yandex.net/v1/disk/resources/upload?path=${file.name}`, {
+        headers: {
+          Authorization: `OAuth ${accessToken}`,
+        },
+      });
+
+      const uploadData = await response.json();
+
+      if (uploadData.href) {
+        await fetch(uploadData.href, {
+          method: 'PUT',
+          body: file,
+        });
+        alert('File uploaded successfully!');
+      } else {
+        alert('Error uploading file.');
+      }
+    });
+
+    // Удаление файла
+    document.getElementById('deleteBtn').addEventListener('click', async () => {
+      if (!accessToken) return alert('Please authorize first.');
+
+      const filePath = document.getElementById('deleteFilePath').value;
+
+      if (!filePath) return alert('Please enter the file path.');
+
+      await fetch(`https://cloud-api.yandex.net/v1/disk/resources?path=${encodeURIComponent(filePath)}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `OAuth ${accessToken}`,
+        },
+      });
+
+      alert('File deleted successfully!');
+    });
+  </script>
+</body>
+</html>

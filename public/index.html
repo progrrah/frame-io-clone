@@ -60,6 +60,20 @@
     </div>
   </div>
 
+  <div class="container mt-4">
+    <h2>Yandex Disk Integration</h2>
+  
+    <!-- Кнопка для получения списка файлов -->
+    <button id="getFiles" class="btn btn-primary mt-2">Get Disk Contents</button>
+  
+    <!-- Кнопка для загрузки файла -->
+    <input type="file" id="fileInput" class="form-control mt-2">
+    <button id="uploadFile" class="btn btn-success mt-2">Upload File</button>
+  
+    <!-- Список файлов -->
+    <ul id="fileList" class="list-group mt-4"></ul>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
     const fileInput = document.getElementById('fileInput');
@@ -213,5 +227,6 @@
     // Загрузка файлов при старте
     loadFiles();
   </script>
+  <script src="yandexDisk.js"></script>
 </body>
 </html>

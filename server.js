@@ -1,12 +1,22 @@
+require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const fetch = require('node-fetch');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const YANDEX_TOKEN = process.env.YANDEX_TOKEN;
+const YANDEX_API_URL = 'https://cloud-api.yandex.net/v1/disk';
 
+if (!YANDEX_TOKEN) {
+  console.error('Error: YANDEX_TOKEN is not defined in .env');
+  process.exit(1);
+}
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -28,80 +38,81 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Для хранения аннотаций в памяти (можно заменить на базу данных)
-const annotationsData = {};
-
-// Загрузка файлов
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'File not uploaded' });
+// Вспомогательные функции
+const requestYandexAPI = async (url, options) => {
+  try {
+    const response = await fetch(url, options);
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Unknown error from Yandex.Disk API');
+    }
+    return data;
+  } catch (error) {
+    console.error(`Error with Yandex API request: ${error.message}`);
+    throw new Error('Failed to communicate with Yandex.Disk API');
   }
-  res.json({ filePath: `/uploads/${req.file.filename}` });
+};
+
+// ===== Маршруты =====
+
+// Получение списка файлов с Яндекс.Диска
+app.get('/files', async (req, res) => {
+  try {
+    const data = await requestYandexAPI(`${YANDEX_API_URL}/resources/files`, {
+      headers: { Authorization: `OAuth ${YANDEX_TOKEN}` },
+    });
+
+    res.json(data.items.map(item => ({
+      name: item.name,
+      path: item.file,
+      type: path.extname(item.name).toLowerCase(),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Удаление файлов
-app.delete('/delete/:filename', (req, res) => {
-  const filePath = path.join(__dirname, 'uploads', req.params.filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-    return res.json({ message: 'File deleted' });
+// Загрузка файла на Яндекс.Диск
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const localFilePath = req.file.path;
+    const fileName = req.file.originalname;
+
+    // Получение ссылки для загрузки
+    const { href } = await requestYandexAPI(`${YANDEX_API_URL}/resources/upload?path=${encodeURIComponent(fileName)}&overwrite=true`, {
+      headers: { Authorization: `OAuth ${YANDEX_TOKEN}` },
+    });
+
+    // Загрузка файла
+    const fileStream = fs.createReadStream(localFilePath);
+    await fetch(href, {
+      method: 'PUT',
+      body: fileStream,
+    });
+
+    // Удаление локального файла
+    fs.unlinkSync(localFilePath);
+
+    res.json({ message: 'File uploaded successfully to Yandex.Disk' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  res.status(404).json({ error: 'File not found' });
 });
 
-// Получение списка файлов
-app.get('/files', (req, res) => {
-  const uploadPath = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadPath)) {
-    return res.json([]);
-  }
-  const files = fs.readdirSync(uploadPath).map(file => ({
-    name: file,
-    path: `/uploads/${file}`,
-    type: path.extname(file).toLowerCase(),
-  }));
-  res.json(files);
-});
+// Удаление файла с Яндекс.Диска
+app.delete('/delete/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
 
-// Фильтрация файлов по типу
-app.get('/files/filter', (req, res) => {
-  const { type } = req.query;
-  const uploadPath = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadPath)) {
-    return res.json([]);
-  }
-  const files = fs.readdirSync(uploadPath)
-    .filter(file => {
-      const ext = path.extname(file).toLowerCase();
-      if (type === 'video') {
-        return ['.mp4', '.avi', '.mov'].includes(ext);
-      } else if (type === 'text') {
-        return ['.md', '.txt'].includes(ext);
-      }
-      return false;
-    })
-    .map(file => ({
-      name: file,
-      path: `/uploads/${file}`,
-      type: path.extname(file).toLowerCase(),
-    }));
-  res.json(files);
-});
+    await requestYandexAPI(`${YANDEX_API_URL}/resources?path=${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `OAuth ${YANDEX_TOKEN}` },
+    });
 
-// Поиск файлов
-app.get('/search', (req, res) => {
-  const { query } = req.query;
-  const uploadPath = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadPath)) {
-    return res.json([]);
+    res.json({ message: 'File deleted successfully from Yandex.Disk' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  const files = fs.readdirSync(uploadPath)
-    .filter(file => file.toLowerCase().includes(query.toLowerCase()))
-    .map(file => ({
-      name: file,
-      path: `/uploads/${file}`,
-    }));
-  res.json(files);
 });
 
 // Сохранение аннотаций
@@ -116,7 +127,7 @@ app.post('/annotations', (req, res) => {
   res.json({ message: 'Annotations saved' });
 });
 
-// Загрузка аннотаций для определенного видео
+// Загрузка аннотаций для видео
 app.get('/annotations', (req, res) => {
   const { video } = req.query;
 
@@ -133,17 +144,12 @@ app.get('/all-annotations', (req, res) => {
   res.json(annotationsData);
 });
 
-// Маршрут для annotation.html
-app.get('/annotation', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'annotation.html'));
-});
-
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Запуск сервера
+// ===== Запуск сервера =====
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
