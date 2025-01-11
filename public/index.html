@@ -6,111 +6,212 @@
   <title>Frame.io Clone</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
+<body
   <div class="container mt-4">
     <h1>Frame.io Clone</h1>
-
-    <!-- Авторизация в Yandex Disk -->
-    <div class="mb-3">
-      <input type="text" id="oauthToken" class="form-control" placeholder="Enter your Yandex Disk OAuth token">
-      <button class="btn btn-primary mt-2" id="connectYandexDisk">Connect to Yandex Disk</button>
-    </div>
 
     <!-- Загрузка файлов -->
     <div class="mb-3">
       <input type="file" id="fileInput" class="form-control">
-      <button class="btn btn-primary mt-2" id="uploadToYandexDisk" disabled>Upload to Yandex Disk</button>
+      <button class="btn btn-primary mt-2" id="uploadBtn">Upload</button>
+    </div>
+
+    <!-- Кнопка перехода на страницу аннотаций -->
+    <div class="mb-3">
+      <!-- <a href="/annotation" class="btn btn-success mt-3">Go to Annotation Page</a> -->
+      <button id="showAnnotations" class="btn btn-primary mt-3">Show All Annotations</button>
+    </div>
+
+    <!-- Список аннотаций -->
+    <div id="annotationsList" class="mt-4" style="display: none;">
+      <h2>Your Annotations</h2>
+      <ul class="list-group" id="annotationsUl">
+        <!-- Список аннотаций будет добавляться здесь -->
+      </ul>
+    </div>
+
+    <!-- Поиск файлов -->
+    <div class="mb-3">
+      <input type="text" id="search" class="form-control" placeholder="Search files">
+      <button class="btn btn-secondary mt-2" id="searchBtn">Search</button>
+    </div>
+
+    <!-- Фильтрация файлов -->
+    <div class="mb-3">
+      <button class="btn btn-outline-primary" onclick="filterFiles('video')">Filter Videos</button>
+      <button class="btn btn-outline-secondary" onclick="filterFiles('text')">Filter Text Files</button>
     </div>
 
     <!-- Список файлов -->
-    <div class="mb-3">
-      <button class="btn btn-secondary" id="loadYandexFiles" disabled>Load Files from Yandex Disk</button>
-      <ul id="yandexFileList" class="list-group mt-2"></ul>
+    <ul id="fileList" class="list-group"></ul>
+
+    <!-- Предпросмотр видео -->
+    <div id="video-preview-container" class="mt-4" style="display: none;">
+      <video id="video-preview" controls width="600">
+        <source id="video-source" src="" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <!-- Предпросмотр Markdown -->
+    <div id="markdown-preview-container" class="mt-4" style="display:none;">
+      <h3>Markdown Preview</h3>
+      <div id="markdown-preview" class="border p-3"></div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
-    let yandexToken = null;
-
-    const oauthTokenInput = document.getElementById('oauthToken');
-    const connectButton = document.getElementById('connectYandexDisk');
-    const uploadButton = document.getElementById('uploadToYandexDisk');
-    const loadFilesButton = document.getElementById('loadYandexFiles');
     const fileInput = document.getElementById('fileInput');
-    const fileList = document.getElementById('yandexFileList');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const searchBtn = document.getElementById('searchBtn');
+    const fileList = document.getElementById('fileList');
+    const videoPreviewContainer = document.getElementById('video-preview-container');
+    const videoPreview = document.getElementById('video-preview');
+    const videoSource = document.getElementById('video-source');
+    const markdownPreviewContainer = document.getElementById('markdown-preview-container');
+    const markdownPreview = document.getElementById('markdown-preview');
+    const annotationsList = document.getElementById('annotationsList');
+    const annotationsUl = document.getElementById('annotationsUl');
+    const showAnnotationsBtn = document.getElementById('showAnnotations');
 
-    // Авторизация в Yandex Disk
-    connectButton.addEventListener('click', () => {
-      yandexToken = oauthTokenInput.value.trim();
-      if (yandexToken) {
-        uploadButton.disabled = false;
-        loadFilesButton.disabled = false;
-        alert('Connected to Yandex Disk!');
-      } else {
-        alert('Please enter a valid OAuth token.');
-      }
-    });
-
-    // Загрузка файла на Yandex Disk
-    uploadButton.addEventListener('click', async () => {
+    // Загрузка файла
+    uploadBtn.addEventListener('click', async () => {
       const file = fileInput.files[0];
-      if (!file) return alert('Please select a file to upload.');
+      if (!file) return alert('Please select a file.');
 
-      const uploadLinkResponse = await fetch('https://cloud-api.yandex.net/v1/disk/resources/upload?path=' + encodeURIComponent(file.name), {
-        headers: {
-          Authorization: `OAuth ${yandexToken}`,
-        },
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/upload', {
+        method: 'POST',
+        body: formData,
       });
 
-      if (!uploadLinkResponse.ok) {
-        return alert('Failed to get upload link.');
-      }
-
-      const { href } = await uploadLinkResponse.json();
-      const uploadResponse = await fetch(href, {
-        method: 'PUT',
-        body: file,
-      });
-
-      if (uploadResponse.ok) {
-        alert('File uploaded successfully!');
+      if (response.ok) {
+        loadFiles();
       } else {
-        alert('File upload failed.');
+        alert('Error uploading file.');
       }
     });
 
-    // Загрузка списка файлов с Yandex Disk
-    loadFilesButton.addEventListener('click', async () => {
-      const response = await fetch('https://cloud-api.yandex.net/v1/disk/resources?path=disk:/', {
-        headers: {
-          Authorization: `OAuth ${yandexToken}`,
-        },
-      });
+    // Загрузка списка файлов
+    async function loadFiles() {
+      const response = await fetch('/files');
+      const files = await response.json();
+      displayFiles(files);
+    }
 
-      if (!response.ok) {
-        return alert('Failed to load files.');
+    // Показ всех аннотаций
+    showAnnotationsBtn.addEventListener('click', async () => {
+      const response = await fetch('/all-annotations');
+      if (response.ok) {
+        const data = await response.json();
+        annotationsUl.innerHTML = '';
+        annotationsList.style.display = 'block';
+
+        if (Object.keys(data).length === 0) {
+          annotationsUl.innerHTML = '<li class="list-group-item">No annotations found.</li>';
+        } else {
+          for (const [videoPath, annotations] of Object.entries(data)) {
+            const videoItem = document.createElement('li');
+            videoItem.className = 'list-group-item';
+            videoItem.innerHTML = `<strong>Video:</strong> ${videoPath}`;
+            annotationsUl.appendChild(videoItem);
+
+            annotations.forEach(annotation => {
+              const annotationItem = document.createElement('li');
+              annotationItem.className = 'list-group-item ms-4';
+              annotationItem.innerHTML = `
+                <div><strong>Start:</strong> ${annotation.startTime}s</div>
+                <div><strong>End:</strong> ${annotation.endTime}s</div>
+                <div><strong>Annotation:</strong> ${annotation.text}</div>
+              `;
+              annotationsUl.appendChild(annotationItem);
+            });
+          }
+        }
+      } else {
+        alert('Failed to load annotations.');
       }
+    });
 
-      const data = await response.json();
-      const files = data._embedded.items;
+    // Предпросмотр файла
+    function previewFile(file) {
+      const fileExtension = file.name.split('.').pop().toLowerCase();
 
+      if (['mp4', 'avi', 'mov'].includes(fileExtension)) {
+        videoSource.src = file.path;
+        videoPreviewContainer.style.display = 'block';
+        videoPreview.load();
+        markdownPreviewContainer.style.display = 'none';
+      } else if (['md', 'txt'].includes(fileExtension)) {
+        fetch(file.path)
+          .then(response => response.text())
+          .then(content => {
+            markdownPreview.innerHTML = marked.parse(content);
+            markdownPreviewContainer.style.display = 'block';
+            videoPreviewContainer.style.display = 'none';
+          });
+      } else {
+        alert('Preview not supported for this file type.');
+      }
+    }
+
+    // Поиск файлов
+    searchBtn.addEventListener('click', async () => {
+      const query = document.getElementById('search').value;
+      const response = await fetch(`/search?query=${encodeURIComponent(query)}`);
+      const files = await response.json();
+      displayFiles(files);
+    });
+
+    // Фильтрация файлов
+    async function filterFiles(type) {
+      const response = await fetch(`/files/filter?type=${type}`);
+      const files = await response.json();
+      displayFiles(files);
+    }
+
+    // Отображение файлов
+    function displayFiles(files) {
       fileList.innerHTML = '';
       files.forEach(file => {
         const li = document.createElement('li');
         li.className = 'list-group-item d-flex justify-content-between align-items-center';
         li.textContent = file.name;
 
-        const downloadButton = document.createElement('button');
-        downloadButton.className = 'btn btn-info btn-sm';
-        downloadButton.textContent = 'Download';
-        downloadButton.addEventListener('click', () => {
-          window.open(file.file, '_blank');
+        const previewBtn = document.createElement('button');
+        previewBtn.textContent = 'Preview';
+        previewBtn.className = 'btn btn-info btn-sm me-2';
+        previewBtn.addEventListener('click', () => previewFile(file));
+
+        if (['mp4', 'avi', 'mov'].includes(file.name.split('.').pop().toLowerCase())) {
+          const annotateBtn = document.createElement('button');
+          annotateBtn.textContent = 'Annotate';
+          annotateBtn.className = 'btn btn-warning btn-sm me-2';
+          annotateBtn.addEventListener('click', () => {
+            window.location.href = `/annotation?video=${encodeURIComponent(file.path)}`;
+          });
+          li.appendChild(annotateBtn);
+        }
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.addEventListener('click', async () => {
+          await fetch(`/delete/${file.name}`, { method: 'DELETE' });
+          loadFiles();
         });
 
-        li.appendChild(downloadButton);
+        li.appendChild(previewBtn);
+        li.appendChild(deleteBtn);
         fileList.appendChild(li);
       });
-    });
+    }
+
+    // Загрузка файлов при старте
+    loadFiles();
   </script>
 </body>
 </html>
